@@ -1,6 +1,11 @@
 # RustDesk Manager
 
+[![Documentation](https://img.shields.io/badge/docs-online-blue?logo=readthedocs)](https://angelbonet.github.io/rustdesk-manager/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 Aplicación de escritorio para gestionar conexiones RustDesk de forma centralizada. Sincroniza automáticamente con tu servidor API de RustDesk y permite organizar equipos en categorías y grupos.
+
+**[📖 Documentación completa](https://angelbonet.github.io/rustdesk-manager/)**
 
 ![RustDesk Manager](static/logo.png)
 
