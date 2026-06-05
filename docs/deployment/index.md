@@ -44,25 +44,17 @@ RUSTDESK_VERSION=1.4.6
 
 ## Guías de instalación
 
-<div class="grid cards" markdown>
+### :material-apple: macOS
 
--   :material-apple:{ .lg .middle } **macOS**
+Instalación en equipos Mac (Intel y Apple Silicon).
 
-    ---
+[:octicons-arrow-right-24: Guía macOS](macos.md)
 
-    Instalación en equipos Mac (Intel y Apple Silicon)
+### :material-microsoft-windows: Windows
 
-    [:octicons-arrow-right-24: Guía macOS](macos.md)
+Instalación en equipos Windows.
 
--   :material-microsoft-windows:{ .lg .middle } **Windows**
-
-    ---
-
-    Instalación en equipos Windows
-
-    [:octicons-arrow-right-24: Guía Windows](windows.md)
-
-</div>
+[:octicons-arrow-right-24: Guía Windows](windows.md)
 
 ## Distribución a clientes
 

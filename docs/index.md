@@ -2,7 +2,7 @@
 
 Aplicación de escritorio para gestionar conexiones RustDesk de forma centralizada. Sincroniza automáticamente con tu servidor API de RustDesk y permite organizar equipos en categorías y grupos.
 
-![RustDesk Manager](../static/logo.png)
+![RustDesk Manager](assets/logo.png)
 
 ## Características
 
@@ -31,41 +31,29 @@ Para usar RustDesk Manager necesitas:
 
 ## Empezar
 
-<div class="grid cards" markdown>
+### :material-download: Instalación
 
--   :material-download:{ .lg .middle } **Instalación**
+Descarga e instala RustDesk Manager en macOS o Windows.
 
-    ---
+[:octicons-arrow-right-24: Guía de instalación](guia/instalacion.md)
 
-    Descarga e instala RustDesk Manager en macOS o Windows
+### :material-cog: Configuración
 
-    [:octicons-arrow-right-24: Guía de instalación](guia/instalacion.md)
+Conecta la app con tu servidor RustDesk API.
 
--   :material-cog:{ .lg .middle } **Configuración**
+[:octicons-arrow-right-24: Configuración inicial](guia/configuracion.md)
 
-    ---
+### :material-server: Montar servidor
 
-    Conecta la app con tu servidor RustDesk API
+Instala tu propio servidor RustDesk self-hosted.
 
-    [:octicons-arrow-right-24: Configuración inicial](guia/configuracion.md)
+[:octicons-arrow-right-24: Guía del servidor](servidor/index.md)
 
--   :material-server:{ .lg .middle } **Montar servidor**
+### :material-script: Desplegar clientes
 
-    ---
+Scripts automatizados para instalar RustDesk en equipos remotos.
 
-    Instala tu propio servidor RustDesk self-hosted
-
-    [:octicons-arrow-right-24: Guía del servidor](servidor/index.md)
-
--   :material-script:{ .lg .middle } **Desplegar clientes**
-
-    ---
-
-    Scripts automatizados para instalar RustDesk en equipos remotos
-
-    [:octicons-arrow-right-24: Scripts de despliegue](deployment/index.md)
-
-</div>
+[:octicons-arrow-right-24: Scripts de despliegue](deployment/index.md)
 
 ## Arquitectura del sistema
 
@@ -92,8 +80,8 @@ Para usar RustDesk Manager necesitas:
 
 ## Licencia
 
-MIT License - [Ver licencia completa](https://github.com/abdatabase/rustdesk-manager/blob/main/LICENSE)
+MIT License - [Ver licencia completa](https://github.com/angelbonet/rustdesk-manager/blob/main/LICENSE)
 
 ---
 
-**abDatabase** · [abdatabase.com](https://abdatabase.com) · [:fontawesome-brands-github: GitHub](https://github.com/abdatabase)
+**abDatabase** · [abdatabase.com](https://abdatabase.com) · [GitHub](https://github.com/angelbonet)

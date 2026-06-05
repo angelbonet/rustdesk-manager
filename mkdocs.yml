@@ -3,8 +3,8 @@ site_description: Gestor de conexiones RustDesk - Documentación
 site_author: abDatabase
 site_url: https://github.com/abdatabase/rustdesk-manager
 
-repo_name: abdatabase/rustdesk-manager
-repo_url: https://github.com/abdatabase/rustdesk-manager
+repo_name: angelbonet/rustdesk-manager
+repo_url: https://github.com/angelbonet/rustdesk-manager
 
 theme:
   name: material
@@ -49,6 +49,9 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.tabbed:
       alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - tables
   - attr_list
   - md_in_html
@@ -79,7 +82,7 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/abdatabase
+      link: https://github.com/angelbonet
     - icon: fontawesome/solid/globe
       link: https://abdatabase.com
 

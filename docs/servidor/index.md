@@ -55,41 +55,29 @@ El servidor RustDesk puede instalarse de varias formas, todas gratuitas:
 
 ## Guías de instalación
 
-<div class="grid cards" markdown>
+### :material-docker: Docker Compose
 
--   :material-docker:{ .lg .middle } **Docker Compose**
+Instalación paso a paso con Docker.
 
-    ---
+[:octicons-arrow-right-24: Guía Docker](docker.md)
 
-    Instalación paso a paso con Docker
+### :material-network: Configuración de red
 
-    [:octicons-arrow-right-24: Guía Docker](docker.md)
+Puertos, NAT y firewall.
 
--   :material-network:{ .lg .middle } **Configuración de red**
+[:octicons-arrow-right-24: Guía de red](red.md)
 
-    ---
+### :material-lock: HTTPS y seguridad
 
-    Puertos, NAT y firewall
+Certificados SSL con Let's Encrypt.
 
-    [:octicons-arrow-right-24: Guía de red](red.md)
+[:octicons-arrow-right-24: Guía HTTPS](https.md)
 
--   :material-lock:{ .lg .middle } **HTTPS y seguridad**
+### :material-wrench: Mantenimiento
 
-    ---
+Logs, backups y actualizaciones.
 
-    Certificados SSL con Let's Encrypt
-
-    [:octicons-arrow-right-24: Guía HTTPS](https.md)
-
--   :material-wrench:{ .lg .middle } **Mantenimiento**
-
-    ---
-
-    Logs, backups y actualizaciones
-
-    [:octicons-arrow-right-24: Guía de mantenimiento](mantenimiento.md)
-
-</div>
+[:octicons-arrow-right-24: Guía de mantenimiento](mantenimiento.md)
 
 ## Recursos externos
 
