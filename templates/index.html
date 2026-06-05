@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t.app_name }}</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="icon" type="image/png" href="/static/icon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .device-card:hover { transform: translateY(-2px); }
+        .password-field { font-family: monospace; }
+        .group-item.active { background-color: rgb(99 102 241 / 0.1); border-left: 3px solid rgb(99 102 241); }
+        .dark .group-item.active { background-color: rgb(99 102 241 / 0.2); }
+
+        /* Coffee link */
+        .coffee-link { transition: all 0.15s; }
+        .coffee-link:hover { background: rgba(232, 160, 32, 0.1); }
+
+        /* Column resizing */
+        .col-resizer {
+            display: inline-block;
+            position: absolute;
+            right: 0;
+            top: 4px;
+            bottom: 4px;
+            width: 4px;
+            background-color: #d1d5db;
+            border-radius: 2px;
+            cursor: col-resize;
+            user-select: none;
+            z-index: 20;
+        }
+        .col-resizer:hover,
+        .col-resizer.resizing {
+            background-color: #6366f1;
+        }
+        .resizable-header {
+            position: relative;
+            user-select: none;
+            overflow: visible !important;
+        }
+        .list-table {
+            table-layout: fixed;
+            width: 100%;
+        }
+        .list-table td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .list-table th {
+            white-space: nowrap;
+        }
+        /* Electron window drag */
+        .drag-region {
+            -webkit-app-region: drag;
+        }
+        .no-drag {
+            -webkit-app-region: no-drag;
+        }
+        /* Splash screen */
+        #splashScreen {
+            transition: opacity 0.4s ease-out;
+        }
+        #splashScreen.fade-out {
+            opacity: 0;
+        }
+        /* Placeholder styling */
+        input::placeholder, textarea::placeholder {
+            color: #9ca3af;
+            opacity: 0.7;
+        }
+        .dark input::placeholder, .dark textarea::placeholder {
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors">
+    <!-- Splash Screen -->
+    <div id="splashScreen" class="fixed inset-0 bg-white flex items-center justify-center z-50">
+        <div class="text-center">
+            <img src="/static/icon.png" alt="RustDesk Manager" class="w-96 h-96 mx-auto -mb-28">
+            <h1 class="text-5xl font-bold text-gray-800 mb-2">RustDesk</h1>
+            <h2 class="text-4xl font-semibold text-indigo-500 mb-12">Manager</h2>
+            <img src="/static/abdatabase_logo.png" alt="abDatabase" class="h-10 mx-auto opacity-50">
+        </div>
+    </div>
+
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col flex-shrink-0">
+            <div class="p-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center drag-region">
+                <h1 class="text-lg font-bold text-gray-800 dark:text-white flex items-center pl-16">
+                    <img src="/static/icon_512.png" alt="" class="w-24 h-24 -m-6">
+                    <span>{{ t.app_name }}</span>
+                </h1>
+                <button onclick="toggleTheme()" class="no-drag p-1 text-gray-400 hover:text-indigo-600 dark:text-gray-500 dark:hover:text-indigo-400 transition-colors" title="{{ t.toggle_theme }}">
+                    <i class="fas fa-moon text-lg" id="themeIconLight"></i>
+                    <i class="fas fa-sun text-lg hidden" id="themeIconDark"></i>
+                </button>
+            </div>
+
+            <!-- Search -->
+            <div class="p-4">
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="{{ t.search_placeholder }}"
+                        class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+
+            <!-- Categories & Groups -->
+            <div class="flex-1 overflow-y-auto">
+                <div class="px-4 py-2 flex justify-between items-center">
+                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ t.categories }}</span>
+                    <button onclick="openCategoryModal()" class="text-indigo-600 hover:text-indigo-800" title="{{ t.new_category_title }}">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <nav id="groupsList" class="px-2">
+                    <a href="#" onclick="filterByGroup(null)" class="group-item active flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <i class="fas fa-th-large text-gray-400"></i>
+                        <span>{{ t.all_devices }}</span>
+                    </a>
+                    <a href="#" onclick="filterByGroup('unassigned')" id="unassignedLink" class="group-item hidden flex items-center gap-2 px-3 py-2 text-amber-700 rounded-lg hover:bg-amber-50 bg-amber-100">
+                        <i class="fas fa-exclamation-circle text-amber-500"></i>
+                        <span>{{ t.unassigned }}</span>
+                        <span id="unassignedBadge" class="ml-auto bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">0</span>
+                    </a>
+
+                    <!-- Categories with nested groups -->
+                    {% for category in categories %}
+                    <div class="category-container" data-category-id="{{ category.id }}">
+                        <div class="flex items-center gap-1 px-3 py-2 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="toggleCategory({{ category.id }})">
+                            <i class="fas fa-chevron-right text-xs text-gray-400 transition-transform category-arrow flex-shrink-0 {% if not category.collapsed %}rotate-90{% endif %}" data-category-arrow="{{ category.id }}"></i>
+                            <i class="fas fa-layer-group ml-1 flex-shrink-0" style="color: {{ category.color }}"></i>
+                            <span class="flex-1 font-medium text-sm truncate min-w-0">{{ category.name }}</span>
+                            <div class="flex gap-0.5 flex-shrink-0" onclick="event.stopPropagation()">
+                                <button onclick="editCategory({{ category.id }}, '{{ category.name }}', '{{ category.color }}')" class="text-gray-400 hover:text-indigo-600 p-1" title="{{ t.edit }}">
+                                    <i class="fas fa-pen text-xs"></i>
+                                </button>
+                                <button onclick="deleteCategory({{ category.id }})" class="text-gray-400 hover:text-red-600 p-1" title="{{ t.delete }}">
+                                    <i class="fas fa-trash text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="category-groups ml-4 {% if category.collapsed %}hidden{% endif %}" data-category-groups="{{ category.id }}">
+                            {% for group in groups %}
+                            {% if group.category_id == category.id %}
+                            <div class="group-item flex items-center px-3 py-1.5 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm" data-group-id="{{ group.id }}">
+                                <a href="#" onclick="filterByGroup({{ group.id }})" class="flex items-center gap-2 flex-1 min-w-0">
+                                    <i class="fas fa-folder flex-shrink-0" style="color: {{ group.color }}"></i>
+                                    <span class="truncate">{{ group.name }}</span>
+                                </a>
+                                <div class="flex gap-0.5 flex-shrink-0 ml-1">
+                                    <button onclick="editGroup({{ group.id }}, '{{ group.name }}', '{{ group.color }}', {{ group.category_id or 'null' }})" class="text-gray-400 hover:text-indigo-600 p-1" title="{{ t.edit }}">
+                                        <i class="fas fa-pen text-xs"></i>
+                                    </button>
+                                    <button onclick="deleteGroup({{ group.id }})" class="text-gray-400 hover:text-red-600 p-1" title="{{ t.delete }}">
+                                        <i class="fas fa-trash text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                            <button onclick="openGroupModal({{ category.id }})" class="flex items-center gap-2 px-3 py-1 text-gray-400 hover:text-indigo-600 text-xs w-full">
+                                <i class="fas fa-plus"></i>
+                                <span>{{ t.add_group }}</span>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Groups without category -->
+                    {% set uncategorized_groups = [] %}
+                    {% for group in groups %}
+                        {% if group.category_id is none %}
+                            {% set _ = uncategorized_groups.append(group) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if uncategorized_groups %}
+                    <div class="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                        <div class="px-3 py-1 flex justify-between items-center">
+                            <span class="text-xs text-gray-400">{{ t.no_category }}</span>
+                            <button onclick="openGroupModal()" class="text-gray-400 hover:text-indigo-600" title="{{ t.new_group_title }}">
+                                <i class="fas fa-plus text-xs"></i>
+                            </button>
+                        </div>
+                        {% for group in groups %}
+                        {% if group.category_id is none %}
+                        <div class="group-item flex items-center px-3 py-1.5 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm" data-group-id="{{ group.id }}">
+                            <a href="#" onclick="filterByGroup({{ group.id }})" class="flex items-center gap-2 flex-1 min-w-0">
+                                <i class="fas fa-folder flex-shrink-0" style="color: {{ group.color }}"></i>
+                                <span class="truncate">{{ group.name }}</span>
+                            </a>
+                            <div class="flex gap-0.5 flex-shrink-0 ml-1">
+                                <button onclick="editGroup({{ group.id }}, '{{ group.name }}', '{{ group.color }}', null)" class="text-gray-400 hover:text-indigo-600 p-1" title="{{ t.edit }}">
+                                    <i class="fas fa-pen text-xs"></i>
+                                </button>
+                                <button onclick="deleteGroup({{ group.id }})" class="text-gray-400 hover:text-red-600 p-1" title="{{ t.delete }}">
+                                    <i class="fas fa-trash text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <a href="#" onclick="filterByGroup('null')" class="group-item flex items-center gap-2 px-3 py-2 text-gray-500 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 mt-2">
+                        <i class="fas fa-inbox text-gray-300"></i>
+                        <span>{{ t.no_group }}</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Footer -->
+            <div class="border-t border-gray-200 dark:border-gray-700">
+                <div class="p-3 space-y-2">
+                    <button onclick="openDeviceModal()"
+                        class="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                        <i class="fas fa-plus"></i>
+                        {{ t.new_device }}
+                    </button>
+                    <button onclick="openSettingsModal()"
+                        class="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 py-2 px-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition flex items-center justify-center gap-2">
+                        <i class="fas fa-cog"></i>
+                        {{ t.settings }}
+                    </button>
+                </div>
+                <a href="https://buymeacoffee.com/angelbonet" target="_blank"
+                    class="coffee-link flex items-center justify-center gap-2 py-2 px-3 text-amber-600 dark:text-amber-400 text-sm border-t border-gray-200 dark:border-gray-700 hover:bg-amber-50 dark:hover:bg-amber-900/20">
+                    <span>☕</span>
+                    <span>{{ t.coffee_link }}</span>
+                </a>
+                <a href="https://abdatabase.com" target="_blank"
+                    class="flex items-center justify-center gap-1 py-2 border-t border-gray-200 dark:border-gray-700 opacity-60 hover:opacity-100 transition-opacity">
+                    <img src="/static/abdatabase_logo.png" alt="abDatabase" class="h-4">
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto dark:bg-gray-900">
+            <!-- Drag region for window -->
+            <div class="drag-region h-8 flex-shrink-0"></div>
+            <div class="p-6 pt-0">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 id="pageTitle" class="text-2xl font-bold text-gray-800 dark:text-white">{{ t.all_devices }}</h2>
+                    <div class="flex items-center gap-4 no-drag">
+                        <button onclick="refreshStatus()" id="btnRefresh" class="text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition-colors" title="{{ t.refresh }}">
+                            <i class="fas fa-sync-alt" id="refreshIcon"></i>
+                        </button>
+                        <span id="deviceCount" class="text-gray-500 dark:text-gray-400">{{ devices|length }} {{ t.devices }}</span>
+                        <div class="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
+                            <button onclick="setViewMode('grid')" id="btnGrid" class="view-btn px-3 py-1 rounded text-sm font-medium bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm" title="Grid">
+                                <i class="fas fa-th-large"></i>
+                            </button>
+                            <button onclick="setViewMode('list')" id="btnList" class="view-btn px-3 py-1 rounded text-sm font-medium text-gray-500 dark:text-gray-300" title="List">
+                                <i class="fas fa-list"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Devices Grid -->
+                <div id="devicesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div class="col-span-full text-center py-12">
+                        <i class="fas fa-spinner fa-spin text-4xl text-gray-300 mb-4"></i>
+                        <p class="text-gray-500">{{ t.loading }}</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Device Modal -->
+    <div id="deviceModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md mx-4">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 id="deviceModalTitle" class="text-lg font-semibold text-gray-800 dark:text-white">{{ t.new_device_title }}</h3>
+            </div>
+            <form id="deviceForm" class="p-6 space-y-4">
+                <input type="hidden" id="deviceId">
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.device_name }} *</label>
+                    <input type="text" id="deviceName" required
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="{{ t.device_name_placeholder }}">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.rustdesk_id }} *</label>
+                    <input type="text" id="deviceRustdeskId" required
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono"
+                        placeholder="{{ t.rustdesk_id_placeholder }}">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.password }}</label>
+                    <div class="relative">
+                        <input type="password" id="devicePassword"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono"
+                            placeholder="{{ t.password_placeholder }}">
+                        <button type="button" onclick="togglePasswordVisibility('devicePassword')"
+                            class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.group }}</label>
+                    <select id="deviceGroup"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <option value="">{{ t.no_group }}</option>
+                        {% for group in groups %}
+                        <option value="{{ group.id }}">{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.description }}</label>
+                    <textarea id="deviceDescription" rows="2"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="{{ t.description_placeholder }}"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.color }}</label>
+                    <input type="color" id="deviceColor" value="#3b82f6"
+                        class="w-12 h-10 rounded cursor-pointer">
+                </div>
+            </form>
+            <div class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+                <button onclick="closeDeviceModal()"
+                    class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
+                    {{ t.cancel }}
+                </button>
+                <button onclick="saveDevice()"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                    {{ t.save }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Group Modal -->
+    <div id="groupModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm mx-4">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 id="groupModalTitle" class="text-lg font-semibold text-gray-800 dark:text-white">{{ t.new_group_title }}</h3>
+            </div>
+            <form id="groupForm" class="p-6 space-y-4">
+                <input type="hidden" id="groupId">
+                <input type="hidden" id="groupCategoryId">
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.group_name }} *</label>
+                    <input type="text" id="groupName" required
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="{{ t.group_name_placeholder }}">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.group_category }}</label>
+                    <select id="groupCategorySelect"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <option value="">{{ t.no_category }}</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}">{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.color }}</label>
+                    <input type="color" id="groupColor" value="#6366f1"
+                        class="w-12 h-10 rounded cursor-pointer">
+                </div>
+            </form>
+            <div class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+                <button onclick="closeGroupModal()"
+                    class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
+                    {{ t.cancel }}
+                </button>
+                <button onclick="saveGroup()"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                    {{ t.save }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="categoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm mx-4">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 id="categoryModalTitle" class="text-lg font-semibold text-gray-800 dark:text-white">{{ t.new_category_title }}</h3>
+            </div>
+            <form id="categoryForm" class="p-6 space-y-4">
+                <input type="hidden" id="categoryId">
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.category_name }} *</label>
+                    <input type="text" id="categoryName" required
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="{{ t.category_name_placeholder }}">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.color }}</label>
+                    <input type="color" id="categoryColor" value="#6366f1"
+                        class="w-12 h-10 rounded cursor-pointer">
+                </div>
+            </form>
+            <div class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+                <button onclick="closeCategoryModal()"
+                    class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
+                    {{ t.cancel }}
+                </button>
+                <button onclick="saveCategory()"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                    {{ t.save }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ t.settings_title }}</h3>
+                <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="settingsForm" class="p-6 space-y-6">
+                <!-- Language -->
+                <div class="space-y-4">
+                    <h4 class="font-medium text-gray-800 dark:text-white flex items-center gap-2">
+                        <i class="fas fa-globe text-indigo-500"></i>
+                        {{ t.language_section }}
+                    </h4>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.language }}</label>
+                        <select id="settingsLanguage"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            {% for lng in supportedLanguages %}
+                            <option value="{{ lng.code }}" {% if lng.code == lang %}selected{% endif %}>{{ lng.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Servidor -->
+                <div class="space-y-4 border-t dark:border-gray-700 pt-4">
+                    <h4 class="font-medium text-gray-800 dark:text-white flex items-center gap-2">
+                        <i class="fas fa-server text-indigo-500"></i>
+                        {{ t.api_server }}
+                    </h4>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.server_url }}</label>
+                        <input type="url" id="settingsApiUrl"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            placeholder="{{ t.server_url_placeholder }}">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.username }}</label>
+                            <input type="text" id="settingsUsername"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                placeholder="{{ t.username_placeholder }}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.password_settings }}</label>
+                            <input type="password" id="settingsPassword"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                placeholder="{{ t.password_new_placeholder }}"
+                                onfocus="if(this.value==='***')this.value=''">
+                            <p id="passwordHint" class="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden">{{ t.password_hint }}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.rustdesk_key }}</label>
+                        <input type="text" id="settingsKey"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                            placeholder="{{ t.rustdesk_key_placeholder }}">
+                    </div>
+                    <button type="button" onclick="testConnection()"
+                        class="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                        <i class="fas fa-plug" id="testIcon"></i>
+                        {{ t.test_connection }}
+                    </button>
+                    <div id="connectionStatus" class="hidden text-sm px-3 py-2 rounded-lg"></div>
+                </div>
+
+                <!-- Sincronización -->
+                <div class="space-y-4 border-t dark:border-gray-700 pt-4">
+                    <h4 class="font-medium text-gray-800 dark:text-white flex items-center gap-2">
+                        <i class="fas fa-sync text-indigo-500"></i>
+                        {{ t.sync_section }}
+                    </h4>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ t.auto_sync }}</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="settingsAutoSync" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.sync_interval }}</label>
+                        <input type="number" id="settingsSyncInterval" min="10" max="600"
+                            class="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <!-- RustDesk -->
+                <div class="space-y-4 border-t dark:border-gray-700 pt-4">
+                    <h4 class="font-medium text-gray-800 dark:text-white flex items-center gap-2">
+                        <i class="fas fa-desktop text-indigo-500"></i>
+                        {{ t.rustdesk_section }}
+                    </h4>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t.default_password }}</label>
+                        <input type="text" id="settingsDefaultPassword"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            placeholder="{{ t.default_password_placeholder }}">
+                    </div>
+                </div>
+
+                <!-- Import/Export -->
+                <div class="space-y-4 border-t dark:border-gray-700 pt-4">
+                    <h4 class="font-medium text-gray-800 dark:text-white flex items-center gap-2">
+                        <i class="fas fa-file-export text-indigo-500"></i>
+                        {{ t.import_export_section }}
+                    </h4>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="exportData()"
+                            class="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 py-2 px-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition flex items-center justify-center gap-2">
+                            <i class="fas fa-download"></i>
+                            {{ t.export_data }}
+                        </button>
+                        <button type="button" onclick="document.getElementById('importFile').click()"
+                            class="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 py-2 px-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition flex items-center justify-center gap-2">
+                            <i class="fas fa-upload"></i>
+                            {{ t.import_data }}
+                        </button>
+                        <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(this)">
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ t.export_data_desc }}</p>
+                </div>
+            </form>
+            <div class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+                <button onclick="closeSettingsModal()"
+                    class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
+                    {{ t.cancel }}
+                </button>
+                <button onclick="saveSettings()"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                    {{ t.save }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        // i18n translations (injected from server)
+        const T = {{ t | dump | safe }};
+        const currentLang = '{{ lang }}';
+
+        // Device status cache
+        window.deviceStatus = {};
+
+        // Load device status from server
+        async function loadDeviceStatus() {
+            try {
+                const response = await fetch('/api/status');
+                window.deviceStatus = await response.json();
+                if (window.cachedDevices) {
+                    renderDevices(window.cachedDevices);
+                }
+            } catch (e) {
+                console.error('Error loading status:', e);
+            }
+        }
+
+        // Set device status manually
+        async function setDeviceStatus(rustdeskId, status) {
+            await fetch(`/api/status/${rustdeskId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            });
+            window.deviceStatus[rustdeskId] = status;
+            if (window.cachedDevices) {
+                renderDevices(window.cachedDevices);
+            }
+            showToast(`${T.status_updated}: ${status === 'online' ? T.status_online : T.status_offline}`);
+        }
+
+        // Toggle device status on click
+        function toggleDeviceStatus(rustdeskId) {
+            const current = window.deviceStatus[rustdeskId];
+            const newStatus = current === 'online' ? 'offline' : 'online';
+            setDeviceStatus(rustdeskId, newStatus);
+        }
+
+        // Refresh status from API
+        async function refreshStatus() {
+            const icon = document.getElementById('refreshIcon');
+            icon.classList.add('fa-spin');
+            try {
+                const response = await fetch('/api/status/refresh', { method: 'POST' });
+                window.deviceStatus = await response.json();
+                if (window.cachedDevices) {
+                    renderDevices(window.cachedDevices);
+                }
+                showToast(T.status_updated);
+            } catch (e) {
+                console.error('Error refreshing status:', e);
+                showToast(T.status_update_error, 'error');
+            }
+            icon.classList.remove('fa-spin');
+        }
+
+        // Check for new/unassigned devices
+        async function checkPendingDevices() {
+            try {
+                const response = await fetch('/api/sync/pending');
+                const data = await response.json();
+
+                const link = document.getElementById('unassignedLink');
+                const badge = document.getElementById('unassignedBadge');
+
+                if (data.unassigned_count > 0) {
+                    link.classList.remove('hidden');
+                    badge.textContent = data.unassigned_count;
+                } else {
+                    link.classList.add('hidden');
+                }
+
+                if (data.new_devices && data.new_devices.length > 0) {
+                    for (const device of data.new_devices) {
+                        showToast(`${T.new_device_notification}: ${device.name}`, 'info');
+                    }
+                    if (!window.currentGroupFilter) {
+                        loadInitialDevices();
+                    }
+                }
+            } catch (e) {
+                console.error('Error checking pending:', e);
+            }
+        }
+
+        // Sync with server
+        async function syncWithServer() {
+            const icon = document.getElementById('refreshIcon');
+            icon.classList.add('fa-spin');
+            try {
+                const response = await fetch('/api/sync', { method: 'POST' });
+                const data = await response.json();
+                if (data.new_count > 0) {
+                    showToast(`${data.new_count} ${T.new_devices_imported}`);
+                    loadInitialDevices();
+                } else {
+                    showToast(T.sync_complete);
+                }
+                await checkPendingDevices();
+                window.deviceStatus = await (await fetch('/api/status')).json();
+                renderDevices(window.cachedDevices);
+            } catch (e) {
+                console.error('Error syncing:', e);
+                showToast(T.status_update_error, 'error');
+            }
+            icon.classList.remove('fa-spin');
+        }
+
+        // Load devices and status on page load
+        async function loadInitialDevices() {
+            const response = await fetch('/api/devices');
+            const devices = await response.json();
+            await loadDeviceStatus();
+            renderDevices(devices);
+            await checkPendingDevices();
+        }
+        document.addEventListener('DOMContentLoaded', loadInitialDevices);
+
+        // Auto-refresh status every 30 seconds
+        setInterval(loadDeviceStatus, 30000);
+
+        // Check for new devices every 60 seconds
+        setInterval(checkPendingDevices, 60000);
+
+        // Toast notifications
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            toastMessage.textContent = message;
+            const colors = {
+                success: 'bg-green-600',
+                error: 'bg-red-600',
+                info: 'bg-amber-500'
+            };
+            toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${
+                colors[type] || colors.success
+            } text-white translate-y-0 opacity-100`;
+            setTimeout(() => {
+                toast.className = toast.className.replace('translate-y-0 opacity-100', 'translate-y-20 opacity-0');
+            }, 3000);
+        }
+
+        // Device Modal
+        async function openDeviceModal() {
+            document.getElementById('deviceModalTitle').textContent = T.new_device_title;
+            document.getElementById('deviceForm').reset();
+            document.getElementById('deviceId').value = '';
+            document.getElementById('deviceColor').value = '#3b82f6';
+
+            try {
+                const configResp = await fetch('/api/config');
+                const config = await configResp.json();
+                const defaultPwd = config.rustdesk?.default_password || '';
+                document.getElementById('devicePassword').value = defaultPwd;
+            } catch (e) {}
+
+            await loadGroupsDropdown();
+            document.getElementById('deviceModal').classList.remove('hidden');
+            document.getElementById('deviceModal').classList.add('flex');
+        }
+
+        async function loadGroupsDropdown(selectedGroupId = null) {
+            const response = await fetch('/api/groups');
+            const groups = await response.json();
+            const select = document.getElementById('deviceGroup');
+            select.innerHTML = `<option value="">${T.no_group}</option>` +
+                groups.map(g => `<option value="${g.id}" ${g.id == selectedGroupId ? 'selected' : ''}>${g.name}</option>`).join('');
+        }
+
+        function closeDeviceModal() {
+            document.getElementById('deviceModal').classList.add('hidden');
+            document.getElementById('deviceModal').classList.remove('flex');
+        }
+
+        async function editDevice(id) {
+            const response = await fetch(`/api/devices`);
+            const devices = await response.json();
+            const device = devices.find(d => d.id === id);
+            if (device) {
+                document.getElementById('deviceModalTitle').textContent = T.edit_device_title;
+                document.getElementById('deviceId').value = device.id;
+                document.getElementById('deviceName').value = device.name;
+                document.getElementById('deviceRustdeskId').value = device.rustdesk_id;
+                document.getElementById('devicePassword').value = device.password || '';
+                document.getElementById('deviceDescription').value = device.description || '';
+                document.getElementById('deviceColor').value = device.color || '#3b82f6';
+                await loadGroupsDropdown(device.group_id);
+                document.getElementById('deviceModal').classList.remove('hidden');
+                document.getElementById('deviceModal').classList.add('flex');
+            }
+        }
+
+        async function saveDevice() {
+            const id = document.getElementById('deviceId').value;
+            const data = {
+                name: document.getElementById('deviceName').value,
+                rustdesk_id: document.getElementById('deviceRustdeskId').value,
+                password: document.getElementById('devicePassword').value || null,
+                group_id: document.getElementById('deviceGroup').value || null,
+                description: document.getElementById('deviceDescription').value || null,
+                color: document.getElementById('deviceColor').value
+            };
+
+            if (!data.name || !data.rustdesk_id) {
+                showToast(T.name_id_required, 'error');
+                return;
+            }
+
+            const url = id ? `/api/devices/${id}` : '/api/devices';
+            const method = id ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showToast(id ? T.device_updated : T.device_created);
+                closeDeviceModal();
+                location.reload();
+            } else {
+                const result = await response.json();
+                showToast(result.error || T.settings_save_error, 'error');
+            }
+        }
+
+        async function deleteDevice(id) {
+            if (!confirm(T.delete_device_confirm)) return;
+
+            const response = await fetch(`/api/devices/${id}`, { method: 'DELETE' });
+            if (response.ok) {
+                showToast(T.device_deleted);
+                location.reload();
+            } else {
+                showToast(T.settings_save_error, 'error');
+            }
+        }
+
+        async function connectDevice(id) {
+            const response = await fetch(`/api/devices/${id}/connect`, { method: 'POST' });
+            const result = await response.json();
+            if (response.ok) {
+                showToast(T.connecting);
+            } else {
+                showToast(result.error || T.connection_error, 'error');
+            }
+        }
+
+        async function fileTransfer(id) {
+            const response = await fetch(`/api/devices/${id}/transfer`, { method: 'POST' });
+            const result = await response.json();
+            if (response.ok) {
+                showToast(T.opening_transfer);
+            } else {
+                showToast(result.error || T.connection_error, 'error');
+            }
+        }
+
+        // Settings Modal
+        let hasStoredPassword = false;
+
+        async function openSettingsModal() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+
+                document.getElementById('settingsLanguage').value = config.language || 'es';
+                document.getElementById('settingsApiUrl').value = config.server?.api_url || '';
+                document.getElementById('settingsUsername').value = config.server?.username || '';
+
+                const pwdField = document.getElementById('settingsPassword');
+                const pwdHint = document.getElementById('passwordHint');
+                hasStoredPassword = config.server?.password === '***';
+                if (hasStoredPassword) {
+                    pwdField.value = '';
+                    pwdField.placeholder = T.password_keep_placeholder;
+                    pwdHint.classList.remove('hidden');
+                } else {
+                    pwdField.value = '';
+                    pwdField.placeholder = T.password_new_placeholder;
+                    pwdHint.classList.add('hidden');
+                }
+
+                document.getElementById('settingsKey').value = config.server?.rustdesk_key || '';
+                document.getElementById('settingsAutoSync').checked = config.sync?.auto_sync ?? true;
+                document.getElementById('settingsSyncInterval').value = config.sync?.interval_seconds || 60;
+                document.getElementById('settingsDefaultPassword').value = config.rustdesk?.default_password || '';
+
+                document.getElementById('connectionStatus').classList.add('hidden');
+            } catch (e) {
+                console.error('Error loading config:', e);
+            }
+
+            document.getElementById('settingsModal').classList.remove('hidden');
+            document.getElementById('settingsModal').classList.add('flex');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.add('hidden');
+            document.getElementById('settingsModal').classList.remove('flex');
+        }
+
+        async function testConnection() {
+            const icon = document.getElementById('testIcon');
+            const status = document.getElementById('connectionStatus');
+            const pwdField = document.getElementById('settingsPassword').value;
+
+            icon.classList.remove('fa-plug');
+            icon.classList.add('fa-spinner', 'fa-spin');
+
+            try {
+                const response = await fetch('/api/config/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        api_url: document.getElementById('settingsApiUrl').value,
+                        username: document.getElementById('settingsUsername').value,
+                        password: pwdField || (hasStoredPassword ? '__USE_STORED__' : '')
+                    })
+                });
+                const result = await response.json();
+
+                status.classList.remove('hidden', 'bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700');
+                if (result.success) {
+                    status.classList.add('bg-green-100', 'text-green-700');
+                    status.innerHTML = `<i class="fas fa-check-circle mr-2"></i>${result.message}`;
+                } else {
+                    status.classList.add('bg-red-100', 'text-red-700');
+                    status.innerHTML = `<i class="fas fa-times-circle mr-2"></i>${result.message}`;
+                }
+            } catch (e) {
+                status.classList.remove('hidden');
+                status.classList.add('bg-red-100', 'text-red-700');
+                status.innerHTML = `<i class="fas fa-times-circle mr-2"></i>${T.connection_error}`;
+            }
+
+            icon.classList.remove('fa-spinner', 'fa-spin');
+            icon.classList.add('fa-plug');
+        }
+
+        async function saveSettings() {
+            const newPassword = document.getElementById('settingsPassword').value;
+            const newLang = document.getElementById('settingsLanguage').value;
+
+            const config = {
+                language: newLang,
+                server: {
+                    api_url: document.getElementById('settingsApiUrl').value,
+                    username: document.getElementById('settingsUsername').value,
+                    password: newPassword || (hasStoredPassword ? '***' : ''),
+                    rustdesk_key: document.getElementById('settingsKey').value
+                },
+                sync: {
+                    auto_sync: document.getElementById('settingsAutoSync').checked,
+                    interval_seconds: parseInt(document.getElementById('settingsSyncInterval').value) || 60
+                },
+                rustdesk: {
+                    default_password: document.getElementById('settingsDefaultPassword').value
+                }
+            };
+
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                if (response.ok) {
+                    showToast(T.settings_saved);
+                    closeSettingsModal();
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    showToast(T.settings_save_error, 'error');
+                }
+            } catch (e) {
+                showToast(T.settings_save_error, 'error');
+            }
+        }
+
+        // Export data
+        async function exportData() {
+            try {
+                const response = await fetch('/api/export');
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `rustdesk-manager-backup-${new Date().toISOString().slice(0,10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast(T.export_success);
+            } catch (e) {
+                showToast(T.settings_save_error, 'error');
+            }
+        }
+
+        // Import data
+        async function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+
+                const response = await fetch('/api/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showToast(T.import_success);
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast(T.import_error, 'error');
+                }
+            } catch (e) {
+                showToast(T.import_error, 'error');
+            }
+
+            input.value = '';
+        }
+
+        // View Mode
+        let currentViewMode = localStorage.getItem('viewMode') || 'grid';
+
+        function setViewMode(mode) {
+            currentViewMode = mode;
+            localStorage.setItem('viewMode', mode);
+
+            document.getElementById('btnGrid').className = 'view-btn px-3 py-1 rounded text-sm font-medium ' +
+                (mode === 'grid' ? 'bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-300');
+            document.getElementById('btnList').className = 'view-btn px-3 py-1 rounded text-sm font-medium ' +
+                (mode === 'list' ? 'bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-300');
+
+            const grid = document.getElementById('devicesGrid');
+            if (mode === 'list') {
+                grid.className = 'flex flex-col gap-2';
+            } else {
+                grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
+            }
+
+            if (window.cachedDevices) {
+                renderDevices(window.cachedDevices);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('btnGrid').className = 'view-btn px-3 py-1 rounded text-sm font-medium ' +
+                (currentViewMode === 'grid' ? 'bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-300');
+            document.getElementById('btnList').className = 'view-btn px-3 py-1 rounded text-sm font-medium ' +
+                (currentViewMode === 'list' ? 'bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-300');
+        });
+
+        // Category Modal
+        function openCategoryModal() {
+            document.getElementById('categoryModalTitle').textContent = T.new_category_title;
+            document.getElementById('categoryForm').reset();
+            document.getElementById('categoryId').value = '';
+            document.getElementById('categoryColor').value = '#6366f1';
+            document.getElementById('categoryModal').classList.remove('hidden');
+            document.getElementById('categoryModal').classList.add('flex');
+        }
+
+        function closeCategoryModal() {
+            document.getElementById('categoryModal').classList.add('hidden');
+            document.getElementById('categoryModal').classList.remove('flex');
+        }
+
+        function editCategory(id, name, color) {
+            document.getElementById('categoryModalTitle').textContent = T.edit_category_title;
+            document.getElementById('categoryId').value = id;
+            document.getElementById('categoryName').value = name;
+            document.getElementById('categoryColor').value = color;
+            document.getElementById('categoryModal').classList.remove('hidden');
+            document.getElementById('categoryModal').classList.add('flex');
+        }
+
+        async function saveCategory() {
+            const id = document.getElementById('categoryId').value;
+            const data = {
+                name: document.getElementById('categoryName').value,
+                color: document.getElementById('categoryColor').value
+            };
+
+            if (!data.name) {
+                showToast(T.name_required, 'error');
+                return;
+            }
+
+            const url = id ? `/api/categories/${id}` : '/api/categories';
+            const method = id ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showToast(id ? T.category_updated : T.category_created);
+                closeCategoryModal();
+                location.reload();
+            } else {
+                showToast(T.settings_save_error, 'error');
+            }
+        }
+
+        async function deleteCategory(id) {
+            if (!confirm(T.delete_category_confirm)) return;
+
+            const response = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+            if (response.ok) {
+                showToast(T.category_deleted);
+                location.reload();
+            } else {
+                showToast(T.settings_save_error, 'error');
+            }
+        }
+
+        async function toggleCategory(categoryId) {
+            const arrow = document.querySelector(`[data-category-arrow="${categoryId}"]`);
+            const groups = document.querySelector(`[data-category-groups="${categoryId}"]`);
+
+            arrow.classList.toggle('rotate-90');
+            groups.classList.toggle('hidden');
+
+            await fetch(`/api/categories/${categoryId}/toggle`, { method: 'POST' });
+        }
+
+        // Group Modal
+        function openGroupModal(categoryId = null) {
+            document.getElementById('groupModalTitle').textContent = T.new_group_title;
+            document.getElementById('groupForm').reset();
+            document.getElementById('groupId').value = '';
+            document.getElementById('groupCategoryId').value = categoryId || '';
+            document.getElementById('groupCategorySelect').value = categoryId || '';
+            document.getElementById('groupColor').value = '#6366f1';
+            document.getElementById('groupModal').classList.remove('hidden');
+            document.getElementById('groupModal').classList.add('flex');
+        }
+
+        function closeGroupModal() {
+            document.getElementById('groupModal').classList.add('hidden');
+            document.getElementById('groupModal').classList.remove('flex');
+        }
+
+        function editGroup(id, name, color, categoryId) {
+            document.getElementById('groupModalTitle').textContent = T.edit_group_title;
+            document.getElementById('groupId').value = id;
+            document.getElementById('groupName').value = name;
+            document.getElementById('groupColor').value = color;
+            document.getElementById('groupCategoryId').value = categoryId || '';
+            document.getElementById('groupCategorySelect').value = categoryId || '';
+            document.getElementById('groupModal').classList.remove('hidden');
+            document.getElementById('groupModal').classList.add('flex');
+        }
+
+        async function saveGroup() {
+            const id = document.getElementById('groupId').value;
+            const categoryId = document.getElementById('groupCategorySelect').value;
+            const data = {
+                name: document.getElementById('groupName').value,
+                color: document.getElementById('groupColor').value,
+                category_id: categoryId ? parseInt(categoryId) : null
+            };
+
+            if (!data.name) {
+                showToast(T.name_required, 'error');
+                return;
+            }
+
+            const url = id ? `/api/groups/${id}` : '/api/groups';
+            const method = id ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showToast(id ? T.group_updated : T.group_created);
+                closeGroupModal();
+                location.reload();
+            } else {
+                showToast(T.settings_save_error, 'error');
+            }
+        }
+
+        async function deleteGroup(id) {
+            if (!confirm(T.delete_group_confirm)) return;
+
+            const response = await fetch(`/api/groups/${id}`, { method: 'DELETE' });
+            if (response.ok) {
+                showToast(T.group_deleted);
+                location.reload();
+            } else {
+                showToast(T.settings_save_error, 'error');
+            }
+        }
+
+        // Filter & Search
+        async function filterByGroup(groupId) {
+            window.currentGroupFilter = groupId;
+            document.querySelectorAll('.group-item').forEach(el => el.classList.remove('active'));
+
+            if (groupId === null) {
+                event.target.closest('.group-item').classList.add('active');
+                document.getElementById('pageTitle').textContent = T.all_devices;
+            } else if (groupId === 'null' || groupId === 'unassigned') {
+                event.target.closest('.group-item').classList.add('active');
+                document.getElementById('pageTitle').textContent = groupId === 'unassigned' ? T.unassigned : T.no_group;
+            } else {
+                document.querySelector(`[data-group-id="${groupId}"]`).classList.add('active');
+                const groupName = document.querySelector(`[data-group-id="${groupId}"] span`).textContent;
+                document.getElementById('pageTitle').textContent = groupName;
+            }
+
+            let url = '/api/devices';
+            if (groupId === 'unassigned') {
+                url += '?group_id=null';
+            } else if (groupId !== null) {
+                url += `?group_id=${groupId}`;
+            }
+            const response = await fetch(url);
+            const devices = await response.json();
+            renderDevices(devices);
+        }
+
+        let searchTimeout;
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                const query = e.target.value;
+                if (query.length > 0) {
+                    const response = await fetch(`/api/devices?search=${encodeURIComponent(query)}`);
+                    const devices = await response.json();
+                    document.getElementById('pageTitle').textContent = `${T.search_results}: "${query}"`;
+                    renderDevices(devices);
+                } else {
+                    location.reload();
+                }
+            }, 300);
+        });
+
+        // Sorting
+        let currentSort = { field: 'name', asc: true };
+
+        function sortDevices(devices, field, asc) {
+            return [...devices].sort((a, b) => {
+                let valA = a[field] || '';
+                let valB = b[field] || '';
+                if (typeof valA === 'string') valA = valA.toLowerCase();
+                if (typeof valB === 'string') valB = valB.toLowerCase();
+                if (valA < valB) return asc ? -1 : 1;
+                if (valA > valB) return asc ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function toggleSort(field) {
+            if (currentSort.field === field) {
+                currentSort.asc = !currentSort.asc;
+            } else {
+                currentSort.field = field;
+                currentSort.asc = true;
+            }
+            if (window.cachedDevices) {
+                renderDevices(window.cachedDevices);
+            }
+        }
+
+        function getStatusDot(device, clickable = true) {
+            const status = window.deviceStatus?.[device.rustdesk_id];
+            const onclick = clickable ? `onclick="toggleDeviceStatus('${device.rustdesk_id}')"` : '';
+            const cursor = clickable ? 'cursor-pointer hover:scale-125' : '';
+            if (status === 'online') {
+                return `<span class="w-3 h-3 rounded-full bg-green-500 inline-block ${cursor} transition-transform" ${onclick} title="${T.status_online} - ${T.click_to_change}"></span>`;
+            } else if (status === 'offline') {
+                return `<span class="w-3 h-3 rounded-full bg-gray-400 inline-block ${cursor} transition-transform" ${onclick} title="${T.status_offline} - ${T.click_to_change}"></span>`;
+            } else if (status === 'connecting') {
+                return `<span class="w-3 h-3 rounded-full bg-yellow-500 inline-block animate-pulse" title="${T.connecting}"></span>`;
+            }
+            return `<span class="w-3 h-3 rounded-full bg-gray-300 inline-block ${cursor} transition-transform" ${onclick} title="${T.status_unknown} - ${T.click_to_change}"></span>`;
+        }
+
+        function renderDevices(devices) {
+            window.cachedDevices = devices;
+            const sorted = sortDevices(devices, currentSort.field, currentSort.asc);
+            const grid = document.getElementById('devicesGrid');
+            document.getElementById('deviceCount').textContent = `${devices.length} ${T.devices}`;
+
+            const sortIcon = (field) => currentSort.field === field
+                ? `<i class="fas fa-sort-${currentSort.asc ? 'up' : 'down'} ml-1"></i>`
+                : '<i class="fas fa-sort ml-1 opacity-30"></i>';
+
+            if (devices.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+                        <p class="text-gray-500">${T.no_results}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (currentViewMode === 'list') {
+                grid.className = 'overflow-x-auto';
+                const colWidths = getColumnWidths();
+                grid.innerHTML = `
+                    <table class="list-table border-collapse" id="devicesTable">
+                        <thead>
+                            <tr class="bg-gray-100 dark:bg-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                                <th class="resizable-header px-2 py-2 text-left border border-gray-200 dark:border-gray-600 rounded-tl-lg" style="width: ${colWidths.status}px; position: relative;" data-col="status">
+                                    <div class="col-resizer" style="position:absolute;right:0;top:4px;bottom:4px;width:4px;background:#9ca3af;border-radius:2px;cursor:col-resize;" onmousedown="startResize(event, 'status')"></div>
+                                </th>
+                                <th class="resizable-header px-2 py-2 text-left border border-gray-200 dark:border-gray-600 cursor-pointer hover:text-gray-800 dark:hover:text-white" style="width: ${colWidths.name}px; position: relative;" data-col="name" onclick="toggleSort('name')">
+                                    ${T.col_name} ${sortIcon('name')}
+                                    <div class="col-resizer" style="position:absolute;right:0;top:4px;bottom:4px;width:4px;background:#9ca3af;border-radius:2px;cursor:col-resize;" onmousedown="startResize(event, 'name')"></div>
+                                </th>
+                                <th class="resizable-header px-2 py-2 text-left border border-gray-200 dark:border-gray-600 cursor-pointer hover:text-gray-800 dark:hover:text-white" style="width: ${colWidths.id}px; position: relative;" data-col="id" onclick="toggleSort('rustdesk_id')">
+                                    ${T.col_id} ${sortIcon('rustdesk_id')}
+                                    <div class="col-resizer" style="position:absolute;right:0;top:4px;bottom:4px;width:4px;background:#9ca3af;border-radius:2px;cursor:col-resize;" onmousedown="startResize(event, 'id')"></div>
+                                </th>
+                                <th class="resizable-header px-2 py-2 text-left border border-gray-200 dark:border-gray-600 cursor-pointer hover:text-gray-800 dark:hover:text-white" style="width: ${colWidths.group}px; position: relative;" data-col="group" onclick="toggleSort('group_name')">
+                                    ${T.col_group} ${sortIcon('group_name')}
+                                    <div class="col-resizer" style="position:absolute;right:0;top:4px;bottom:4px;width:4px;background:#9ca3af;border-radius:2px;cursor:col-resize;" onmousedown="startResize(event, 'group')"></div>
+                                </th>
+                                <th class="resizable-header px-2 py-2 text-left border border-gray-200 dark:border-gray-600" style="width: ${colWidths.description}px; position: relative;" data-col="description">
+                                    ${T.col_description}
+                                    <div class="col-resizer" style="position:absolute;right:0;top:4px;bottom:4px;width:4px;background:#9ca3af;border-radius:2px;cursor:col-resize;" onmousedown="startResize(event, 'description')"></div>
+                                </th>
+                                <th class="px-2 py-2 text-right border border-gray-200 dark:border-gray-600 rounded-tr-lg" style="width: ${colWidths.actions}px">${T.col_actions}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sorted.map((device, idx) => `
+                                <tr class="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 ${idx === sorted.length - 1 ? '[&>td:first-child]:rounded-bl-lg [&>td:last-child]:rounded-br-lg' : ''}" data-device-id="${device.id}">
+                                    <td class="px-2 py-2 border border-gray-200 dark:border-gray-600 text-center">${getStatusDot(device)}</td>
+                                    <td class="px-2 py-2 border border-gray-200 dark:border-gray-600 font-medium text-gray-800 dark:text-white" title="${device.name}">${device.name}</td>
+                                    <td class="px-2 py-2 border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 font-mono text-sm">${device.rustdesk_id}</td>
+                                    <td class="px-2 py-2 border border-gray-200 dark:border-gray-600">${device.group_name ? `<span class="px-2 py-0.5 rounded text-xs" style="background-color: ${device.group_color}20; color: ${device.group_color}">${device.group_name}</span>` : '<span class="text-gray-300 dark:text-gray-600">-</span>'}</td>
+                                    <td class="px-2 py-2 border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-sm" title="${device.description || ''}">${device.description || ''}</td>
+                                    <td class="px-2 py-2 border border-gray-200 dark:border-gray-600">
+                                        <div class="flex items-center justify-end gap-1">
+                                            ${device.password ? `<button onclick="togglePassword(this, '${device.password}')" class="text-gray-400 hover:text-gray-600 p-1" title="${T.view_password}"><i class="fas fa-key text-xs"></i></button>` : ''}
+                                            <button onclick="fileTransfer(${device.id})" class="text-blue-500 hover:text-blue-700 p-1" title="${T.file_transfer}"><i class="fas fa-folder-open"></i></button>
+                                            <button onclick="connectDevice(${device.id})" class="text-green-500 hover:text-green-700 p-1" title="${T.connect}"><i class="fas fa-desktop"></i></button>
+                                            <button onclick="editDevice(${device.id})" class="text-gray-400 hover:text-indigo-600 p-1" title="${T.edit}"><i class="fas fa-edit"></i></button>
+                                            <button onclick="deleteDevice(${device.id})" class="text-gray-400 hover:text-red-600 p-1" title="${T.delete}"><i class="fas fa-trash"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
+                grid.innerHTML = sorted.map(device => `
+                    <div class="device-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-all duration-200 hover:shadow-md"
+                        data-device-id="${device.id}">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg flex items-center justify-center relative" style="background-color: ${device.color}20">
+                                    <i class="fas fa-computer text-lg" style="color: ${device.color}"></i>
+                                    <span class="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 ${window.deviceStatus?.[device.rustdesk_id] === 'online' ? 'bg-green-500' : 'bg-gray-400'}"></span>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-gray-800 dark:text-white">${device.name}</h3>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 font-mono">${device.rustdesk_id}</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-1">
+                                <button onclick="editDevice(${device.id})" class="p-1 text-gray-400 hover:text-indigo-600">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="deleteDevice(${device.id})" class="p-1 text-gray-400 hover:text-red-600">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        ${device.description ? `<p class="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">${device.description}</p>` : ''}
+                        ${device.group_name ? `
+                            <div class="mb-3">
+                                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
+                                    style="background-color: ${device.group_color}20; color: ${device.group_color}">
+                                    <i class="fas fa-folder text-xs"></i>
+                                    ${device.group_name}
+                                </span>
+                            </div>
+                        ` : ''}
+                        <div class="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
+                            ${device.password ? `
+                                <button onclick="togglePassword(this, '${device.password}')"
+                                    class="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+                                    <i class="fas fa-eye"></i>
+                                    <span>${T.view_password}</span>
+                                </button>
+                            ` : `<span class="text-xs text-gray-400">${T.no_password}</span>`}
+                            <div class="flex gap-2">
+                                <button onclick="fileTransfer(${device.id})"
+                                    class="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-600 transition" title="${T.file_transfer}">
+                                    <i class="fas fa-folder-open"></i>
+                                </button>
+                                <button onclick="connectDevice(${device.id})"
+                                    class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-600 transition" title="${T.connect}">
+                                    <i class="fas fa-desktop"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Password toggle
+        function togglePassword(btn, password) {
+            const span = btn.querySelector('span');
+            const icon = btn.querySelector('i');
+            if (span.textContent === T.view_password) {
+                span.textContent = password;
+                span.classList.add('font-mono');
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                span.textContent = T.view_password;
+                span.classList.remove('font-mono');
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        function togglePasswordVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        // Close modals on Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeDeviceModal();
+                closeGroupModal();
+                closeCategoryModal();
+                closeSettingsModal();
+            }
+        });
+
+        // Close modals on background click
+        document.getElementById('deviceModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeDeviceModal();
+        });
+        document.getElementById('groupModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeGroupModal();
+        });
+        document.getElementById('categoryModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeCategoryModal();
+        });
+        document.getElementById('settingsModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeSettingsModal();
+        });
+
+        // Column resizing
+        const defaultColumnWidths = {
+            status: 40,
+            name: 200,
+            id: 110,
+            group: 130,
+            description: 250,
+            actions: 180
+        };
+
+        function getColumnWidths() {
+            const saved = localStorage.getItem('columnWidths');
+            return saved ? { ...defaultColumnWidths, ...JSON.parse(saved) } : { ...defaultColumnWidths };
+        }
+
+        function saveColumnWidths(widths) {
+            localStorage.setItem('columnWidths', JSON.stringify(widths));
+        }
+
+        let resizingColumn = null;
+        let startX = 0;
+        let startWidth = 0;
+
+        function startResize(e, colName) {
+            e.preventDefault();
+            e.stopPropagation();
+            resizingColumn = colName;
+            startX = e.pageX;
+            const th = document.querySelector(`th[data-col="${colName}"]`);
+            startWidth = th.offsetWidth;
+            th.querySelector('.col-resizer').classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            if (!resizingColumn) return;
+            const diff = e.pageX - startX;
+            const newWidth = Math.max(40, startWidth + diff);
+            const th = document.querySelector(`th[data-col="${resizingColumn}"]`);
+            if (th) {
+                th.style.width = newWidth + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!resizingColumn) return;
+            const th = document.querySelector(`th[data-col="${resizingColumn}"]`);
+            if (th) {
+                th.querySelector('.col-resizer').classList.remove('resizing');
+                const widths = getColumnWidths();
+                widths[resizingColumn] = th.offsetWidth;
+                saveColumnWidths(widths);
+            }
+            resizingColumn = null;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        });
+
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const isDark = html.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeIcons(isDark);
+        }
+
+        function updateThemeIcons(isDark) {
+            const lightIcon = document.getElementById('themeIconLight');
+            const darkIcon = document.getElementById('themeIconDark');
+            if (isDark) {
+                lightIcon.classList.add('hidden');
+                darkIcon.classList.remove('hidden');
+            } else {
+                lightIcon.classList.remove('hidden');
+                darkIcon.classList.add('hidden');
+            }
+        }
+
+        // Apply saved theme on load
+        (function() {
+            const saved = localStorage.getItem('theme');
+            const isDark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+            }
+            document.addEventListener('DOMContentLoaded', () => updateThemeIcons(isDark));
+        })();
+
+        // Hide splash screen after load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const splash = document.getElementById('splashScreen');
+                if (splash) {
+                    splash.classList.add('fade-out');
+                    setTimeout(() => splash.remove(), 400);
+                }
+            }, 800);
+        });
+    </script>
+</body>
+</html>

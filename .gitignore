@@ -1,0 +1,36 @@
+# Dependencias
+node_modules/
+
+# Builds (muy pesados para git)
+dist/
+
+# Configuración con datos sensibles
+deployment/config.txt
+
+# Archivos de desarrollo local
+*.db
+config.json
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Assets de producción (pesados)
+RustDeskManager_ProductionAssets/
+RustDeskManager_ProductionAssets.zip
+
+# Claude Code local
+.claude/
+
+# MkDocs build
+site/

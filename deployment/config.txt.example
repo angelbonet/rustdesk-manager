@@ -1,0 +1,32 @@
+# ============================================================
+# CONFIGURACIÓN DEL INSTALADOR DE RUSTDESK
+# ============================================================
+#
+# Rellena los valores y guarda el archivo.
+# Los instaladores leerán esta configuración automáticamente.
+#
+# IMPORTANTE: No compartas este archivo, contiene datos sensibles.
+#
+
+# --- SERVIDOR RUSTDESK ---
+# Dirección de tu servidor RustDesk (sin puerto)
+RENDEZVOUS_SERVER=tu-servidor.com
+
+# Servidor relay (normalmente el mismo)
+RELAY_SERVER=tu-servidor.com
+
+# Clave pública del servidor (la obtienes de la configuración del servidor)
+KEY=tu_clave_publica_aqui
+
+# Contraseña que se asignará a los clientes instalados
+PASSWORD=tu_contraseña_aqui
+
+# --- NOTIFICACIONES PUSHOVER (opcional) ---
+# Si no usas Pushover, deja estos campos vacíos
+# Obtén tus tokens en https://pushover.net
+PUSHOVER_TOKEN=
+PUSHOVER_USER=
+
+# --- VERSIÓN DE RUSTDESK ---
+# Versión a instalar (consulta https://github.com/rustdesk/rustdesk/releases)
+RUSTDESK_VERSION=1.4.6
