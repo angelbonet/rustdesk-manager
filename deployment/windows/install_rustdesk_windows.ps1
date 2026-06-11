@@ -3,7 +3,7 @@
 # Ejecutar desde Instalar_RustDesk.bat (se eleva solo a administrador)
 #
 
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 
 # === CARGAR CONFIGURACION ===
 $configFile = Join-Path $scriptDir "config.txt"
