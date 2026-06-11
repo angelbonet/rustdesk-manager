@@ -6,6 +6,8 @@ dist/
 
 # Configuración con datos sensibles
 deployment/config.txt
+deployment/mac/config.txt
+deployment/windows/config.txt
 
 # Archivos de desarrollo local
 *.db
